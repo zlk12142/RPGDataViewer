@@ -15,15 +15,15 @@
 //#define D_MALLOC_FAIL 10
 //#define D_REALLOC_FAIL 10
 
-void d_clear_cnt(void);
-void d_destroy(void);
+void d_clear_cnt();
+void d_destroy();
 BOOL d_fail(char rate);
 void d_free(void *mem);
-void d_id_increase(void);
-void d_init(void);
+void d_id_increase();
+void d_init();
 void *d_malloc(size_t size);
 void d_memory_test(LPTSTR file);
 void *d_realloc(void *mem, size_t size);
-size_t d_size(void);
+size_t d_size();
 
 #endif

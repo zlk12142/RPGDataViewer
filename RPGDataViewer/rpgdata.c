@@ -4,11 +4,12 @@
 #include "debug.h"
 #include "rpgdata.h"
 
-static struct ruby_list rb_objlist = {0}, rb_symlist = {0};
+static struct ruby_list rb_objlist, rb_symlist;
 
 BOOL rblist_add(struct ruby_list *list, struct ruby_object *item)
 {
 	void *p;
+
 	if (list->length == list->capacity)
 	{
 		list->capacity += RBLIST_STEP;
@@ -39,18 +40,19 @@ void rblist_reset(struct ruby_list *list)
 /* 长整数对象转换为十六进制字符串 */
 LPTSTR rpgdata_bignum_to_string(struct ruby_object *obj)
 {
-	BOOL zero_flag = TRUE; // 去掉多余前导0的标记
-	const char *list = "0123456789abcdef";
-	LPTSTR str;
+	char *list = "0123456789abcdef";
 	unsigned long size;
 	unsigned long i, j = 0;
+	BOOL zero_flag = TRUE; // 去掉多余前导0的标记
+	LPTSTR str;
+
 	if (obj->type != RBT_BIGNUM)
 		return NULL;
 
 	size = 2 * obj->length + 1;
 	if (obj->data[0] == '-')
 		size++;
-	str = (LPTSTR)malloc(size * sizeof(TCHAR));
+	str = malloc(size * sizeof(TCHAR));
 	if (str == NULL)
 		return NULL;
 	if (obj->data[0] == '-')
@@ -78,6 +80,7 @@ LPTSTR rpgdata_bignum_to_string(struct ruby_object *obj)
 void rpgdata_free(struct ruby_object *obj)
 {
 	long i, j;
+
 	if (obj == NULL)
 		return;
 	if (obj->extension != NULL)
@@ -170,9 +173,9 @@ BOOL rpgdata_isfolder(unsigned char type)
 
 int rpgdata_load(LPCTSTR filename, struct ruby_object *obj)
 {
-	FILE *fp;
 	int ret = 0;
 	void *p;
+	FILE *fp;
 
 	_tfopen_s(&fp, filename, TEXT("rb"));
 	if (fp == NULL)
@@ -208,9 +211,10 @@ int rpgdata_load(LPCTSTR filename, struct ruby_object *obj)
 */
 int rpgdata_prepare_object(FILE *fp, struct ruby_object *obj, BOOL has_length)
 {
-	// 在Ruby中，类名和成员名都是符号，且同名符号只能在内存中存在一次
 	int result;
 	struct ruby_object *sym;
+	
+	// 在Ruby中，类名和成员名都是符号，且同名符号只能在内存中存在一次
 	result = rpgdata_read_symbol_block(fp, &sym); // 类名
 	if (result != 0)
 		return result;
@@ -291,13 +295,14 @@ int rpgdata_read_array(FILE *fp, struct ruby_object *obj)
 {
 	int result;
 	long i;
+
 	if (!rpgdata_register_object(obj))
 		return RPGERR_MEMORY;
 	if (!rpgdata_read_long(fp, &obj->length) || obj->length < 0)
 		return RPGERR_DATA;
 	if (obj->length > 0)
 	{
-		obj->adata = (struct ruby_object *)malloc(obj->length * sizeof(struct ruby_object));
+		obj->adata = malloc(obj->length * sizeof(struct ruby_object));
 		if (obj->adata == NULL)
 			return RPGERR_MEMORY;
 		memset(obj->adata, 0, obj->length * sizeof(struct ruby_object));
@@ -313,7 +318,9 @@ int rpgdata_read_array(FILE *fp, struct ruby_object *obj)
 
 int rpgdata_read_bignum(FILE *fp, struct ruby_object *obj)
 {
-	unsigned char sign = fgetc(fp); // 符号位
+	unsigned char sign;
+
+	sign = fgetc(fp); // 符号位
 	if (feof(fp))
 		return RPGERR_DATA;
 	if (!rpgdata_register_object(obj))
@@ -321,7 +328,7 @@ int rpgdata_read_bignum(FILE *fp, struct ruby_object *obj)
 	if (!rpgdata_read_long(fp, &obj->length))
 		return RPGERR_DATA;
 	obj->length = 2 * obj->length + 1;
-	obj->data = (unsigned char *)malloc(obj->length);
+	obj->data = malloc(obj->length);
 	if (obj->data == NULL)
 		return RPGERR_MEMORY;
 	obj->data[0] = sign;
@@ -342,6 +349,7 @@ int rpgdata_read_extended(FILE *fp, struct ruby_object *obj)
 {
 	int result;
 	struct ruby_object *sym;
+
 	result = rpgdata_read_symbol_block(fp, &sym);
 	if (result != 0)
 		return result;
@@ -366,6 +374,7 @@ int rpgdata_read_fixnum(FILE *fp, struct ruby_object *obj)
 int rpgdata_read_float(FILE *fp, struct ruby_object *obj)
 {
 	int err;
+
 	err = rpgdata_read_string(fp, NULL, &obj->dbl_str);
 	if (err != 0)
 		return err;
@@ -388,6 +397,7 @@ int rpgdata_read_hash(FILE *fp, struct ruby_object *obj)
 {
 	int result;
 	long i, n;
+
 	if (!rpgdata_register_object(obj))
 		return RPGERR_MEMORY;
 	if (!rpgdata_read_long(fp, &obj->length) || obj->length < 0)
@@ -405,7 +415,7 @@ int rpgdata_read_hash(FILE *fp, struct ruby_object *obj)
 			return 0; // 若哈希表为空, 则无需分配内存
 	}
 
-	obj->adata = (struct ruby_object *)malloc(n * sizeof(struct ruby_object));
+	obj->adata = malloc(n * sizeof(struct ruby_object));
 	if (obj->adata == NULL)
 		return RPGERR_MEMORY;
 	memset(obj->adata, 0, n * sizeof(struct ruby_object));
@@ -423,8 +433,10 @@ int rpgdata_read_hash(FILE *fp, struct ruby_object *obj)
 /* 读取Marshal数据头 */
 BOOL rpgdata_read_header(FILE *fp)
 {
-	long oldpos = ftell(fp);
+	long oldpos;
 	unsigned char data[2];
+
+	oldpos = ftell(fp);
 	fread(data, 2, 1, fp);
 	if (!feof(fp) && data[0] == MARSHAL_MAJOR && data[1] == MARSHAL_MINOR)
 		return TRUE; // 如果读取成功则返回true，且指针移动到数据头的后面
@@ -479,6 +491,7 @@ int rpgdata_read_ivar(FILE *fp, struct ruby_object *obj)
 int rpgdata_read_link(FILE *fp, struct ruby_object *obj)
 {
 	long id;
+
 	if (!rpgdata_read_long(fp, &id))
 		return RPGERR_DATA;
 	obj->adata = rblist_get(&rb_objlist, id);
@@ -490,8 +503,10 @@ int rpgdata_read_link(FILE *fp, struct ruby_object *obj)
 /* 读取一个经过Ruby Marshal特殊处理的有符号长整数（不含类型标记） */
 BOOL rpgdata_read_long(FILE *fp, long *val)
 {
-	char n = fgetc(fp);
+	char n;
 	long i;
+
+	n = fgetc(fp);
 	if (feof(fp))
 		return FALSE; // 文件意外结束, 读取失败
 
@@ -547,7 +562,7 @@ int rpgdata_read_object(FILE *fp, struct ruby_object *obj, BOOL only_members)
 	}
 	if (obj->length > 0)
 	{
-		obj->members = (struct ruby_member *)malloc(obj->length * sizeof(struct ruby_member));
+		obj->members = malloc(obj->length * sizeof(struct ruby_member));
 		if (obj->members == NULL)
 			return RPGERR_MEMORY;
 		memset(obj->members, 0, obj->length * sizeof(struct ruby_member));
@@ -578,12 +593,13 @@ int rpgdata_read_regexp(FILE *fp, struct ruby_object *obj)
 {
 	char options;
 	long i, len;
+
 	if (!rpgdata_read_long(fp, &len) || len < 0)
 		return RPGERR_DATA;
 
 	if (!rpgdata_register_object(obj))
 		return RPGERR_MEMORY;
-	obj->sdata = (char *)malloc(len + 6);
+	obj->sdata = malloc(len + 6);
 	if (obj->sdata == NULL)
 		return RPGERR_MEMORY;
 	obj->sdata[0] = '/';
@@ -603,7 +619,7 @@ int rpgdata_read_regexp(FILE *fp, struct ruby_object *obj)
 	if (options & ONIG_OPTION_EXTEND)
 		obj->sdata[i++] = 'x';
 	obj->sdata[i] = '\0';
-	obj->sdata = (char *)realloc(obj->sdata, i + 1);
+	obj->sdata = realloc(obj->sdata, i + 1);
 	return 0;
 }
 
@@ -615,10 +631,11 @@ int rpgdata_read_string(FILE *fp, struct ruby_object *obj, char **ppsz)
 {
 	char *str;
 	long len;
+
 	if (!rpgdata_read_long(fp, &len) || len < 0)
 		return RPGERR_DATA; // 字符串长度读取失败或不合法
 
-	str = (char *)malloc(len + 1);
+	str = malloc(len + 1);
 	if (str == NULL)
 		return RPGERR_MEMORY; // 内存分配失败
 	str[len] = '\0';
@@ -658,7 +675,8 @@ int rpgdata_read_symbol(FILE *fp, struct ruby_object *obj)
 int rpgdata_read_symbol_block(FILE *fp, struct ruby_object **ppobj)
 {
 	int result;
-	*ppobj = (struct ruby_object *)malloc(sizeof(struct ruby_object));
+
+	*ppobj = malloc(sizeof(struct ruby_object));
 	if (*ppobj == NULL)
 		return RPGERR_MEMORY;
 	memset(*ppobj, 0, sizeof(struct ruby_object));
@@ -688,6 +706,7 @@ int rpgdata_read_symbol_block(FILE *fp, struct ruby_object **ppobj)
 int rpgdata_read_symlink(FILE *fp, struct ruby_object *obj)
 {
 	long id;
+
 	if (!rpgdata_read_long(fp, &id))
 		return RPGERR_DATA;
 	obj->adata = rblist_get(&rb_symlist, id);
@@ -720,7 +739,7 @@ int rpgdata_read_uclass(FILE *fp, struct ruby_object *obj)
 	
 	// 将之前读到的内容放到member->value中, 同时清空obj
 	// 这样被注册的对象就是obj, 而非member->value, 但读到的内容却是放到member->value里的
-	member = (struct ruby_member *)malloc(sizeof(struct ruby_member)); // 新开辟的内存中, 三个成员均为垃圾数据
+	member = malloc(sizeof(struct ruby_member)); // 新开辟的内存中, 三个成员均为垃圾数据
 	if (member == NULL)
 	{
 		rpgdata_free_symbol(sym);
@@ -746,10 +765,12 @@ int rpgdata_read_uclass(FILE *fp, struct ruby_object *obj)
 // RBT_USERDEF类型表示一堆已知长度的二进制数据
 int rpgdata_read_userdef(FILE *fp, struct ruby_object *obj)
 {
-	int result = rpgdata_prepare_object(fp, obj, TRUE);
+	int result;
+
+	result = rpgdata_prepare_object(fp, obj, TRUE);
 	if (result != 0)
 		return result;
-	obj->data = (unsigned char *)malloc(obj->length);
+	obj->data = malloc(obj->length);
 	if (obj->data == NULL)
 		return RPGERR_MEMORY;
 	fread(obj->data, obj->length, 1, fp);
@@ -761,18 +782,20 @@ int rpgdata_read_userdef(FILE *fp, struct ruby_object *obj)
 // RBT_USRMARSHAL类型相当于一个长度恒为1的数组
 int rpgdata_read_usermarshal(FILE *fp, struct ruby_object *obj)
 {
-	int result = rpgdata_prepare_object(fp, obj, FALSE);
+	int result;
+
+	result = rpgdata_prepare_object(fp, obj, FALSE);
 	if (result != 0)
 		return result;
 	obj->length = 1;
-	obj->adata = (struct ruby_object *)malloc(sizeof(struct ruby_object));
+	obj->adata = malloc(sizeof(struct ruby_object));
 	if (obj->adata == NULL)
 		return RPGERR_MEMORY;
 	return rpgdata_read(fp, obj->adata); // 可以为任意Ruby对象
 }
 
 /* 清空上一个字节流的所有链接列表 */
-void rpgdata_reset(void)
+void rpgdata_reset()
 {
 	rblist_reset(&rb_objlist);
 	rblist_reset(&rb_symlist);

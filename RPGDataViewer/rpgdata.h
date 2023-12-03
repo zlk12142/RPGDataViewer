@@ -42,7 +42,13 @@
 
 #define RBLIST_STEP 2
 
-enum ruby_float_err {RUBY_FLOAT = 0, RUBY_FLOAT_INF = '+', RUBY_FLOAT_NEGINF = '-', RUBY_FLOAT_NAN = '?'};
+enum ruby_float_err
+{
+	RUBY_FLOAT = 0,
+	RUBY_FLOAT_INF = '+',
+	RUBY_FLOAT_NEGINF = '-',
+	RUBY_FLOAT_NAN = '?'
+};
 
 struct ruby_list
 {
@@ -133,4 +139,4 @@ int rpgdata_read_symlink(FILE *fp, struct ruby_object *obj);
 int rpgdata_read_uclass(FILE *fp, struct ruby_object *obj);
 int rpgdata_read_userdef(FILE *fp, struct ruby_object *obj);
 int rpgdata_read_usermarshal(FILE *fp, struct ruby_object *obj);
-void rpgdata_reset(void);
+void rpgdata_reset();

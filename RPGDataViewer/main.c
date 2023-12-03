@@ -4,8 +4,8 @@
 #include <strsafe.h>
 #include <CommCtrl.h>
 #include <Shlwapi.h>
-#include "resource.h"
 #include "debug.h"
+#include "resource.h"
 #include "rpgdata.h"
 #include "main.h"
 
@@ -13,14 +13,14 @@
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' language='*' processorArchitecture='*' publicKeyToken='6595b64144ccf1df'\"")
 
-BOOL bResizingView = FALSE;
+struct ruby_object filecontent;
+BOOL bResizingView;
 HIMAGELIST himl; // 图标列表
 HWND hwndMain; // 主窗口
 HWND hwndTree, hwndList;
 HWND hwndStatus;
-SHFILEINFO sfi = {0}; // 当前文件的文件信息
+SHFILEINFO sfi; // 当前文件的文件信息
 TCHAR szFile[MAX_PATH]; // 打开的文件
-struct ruby_object filecontent;
 
 /* 主函数 */
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
@@ -28,19 +28,19 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	HMENU hMenu;
 	HWND hWnd;
 	MSG msg;
-	WNDCLASSEX wcex;
+	WNDCLASSEX wcex = {0};
+
 	InitCommonControls(); // 初始化控件
 
 	/* 注册窗口类 */
-	ZeroMemory(&wcex, sizeof(wcex));
 	wcex.cbSize = sizeof(WNDCLASSEX);
 	wcex.hbrBackground = (HBRUSH)(COLOR_3DFACE + 1);
 	wcex.hCursor = LoadCursor(NULL, IDC_SIZEWE);
-	wcex.hIcon = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), (UINT)NULL);
-	wcex.hIconSm = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), (UINT)NULL);
+	wcex.hIcon = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), 0);
+	wcex.hIconSm = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), 0);
 	wcex.hInstance = hInstance;
 	wcex.lpszClassName = TEXT("MainWindow");
-	wcex.lpfnWndProc = WndProc;
+	wcex.lpfnWndProc = wnd_proc;
 	wcex.style = CS_DBLCLKS; // 启用双击消息
 	if (!RegisterClassEx(&wcex))
 	{
@@ -49,7 +49,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	}
 
 	/* 创建并显示窗口 */
-	hMenu = CreateMainMenu();
+	hMenu = create_main_menu();
 	hWnd = CreateWindow(wcex.lpszClassName, APP_TITLE, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, hMenu, hInstance, NULL);
 	if (!hWnd)
 	{
@@ -70,10 +70,10 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 
 /* 主窗口消息处理函数 */
 // WPARAM = Word(16位) Parameter, LPARAM = Long(32位) Parameter
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	HINSTANCE hInstance;
 	int wmId;
+	HINSTANCE hInstance;
 	LPNMHDR pnmh;
 	LPNMLISTVIEW pnmlv;
 	RECT rect;
@@ -86,13 +86,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		switch (wmId)
 		{
 		case IDM_OPEN:
-			OpenFileDlg();
+			open_file_dlg();
 			break;
 		case IDM_EXIT:
 			DestroyWindow(hWnd);
 			break;
 		case IDM_ABOUT:
-			DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, AboutDlgProc);
+			DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, about_dlg_proc);
 			break;
 		}
 		break;
@@ -100,7 +100,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		/* 当窗口创建时 */
 		hwndMain = hWnd;
 		hInstance = GetModuleHandle(NULL);
-		ZeroMemory(&filecontent, sizeof(filecontent));
 #if _DEBUG
 		d_init(); // 开始内存泄漏检查
 #endif
@@ -115,12 +114,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		ListView_SetImageList(hwndList, himl, LVSIL_SMALL);
 		ListView_SetExtendedListViewStyle(hwndList, LVS_EX_DOUBLEBUFFER); // 启用半透明选择框
 		
-		InitImageList();
-		InitListView();
+		init_image_list();
+		init_list_view();
 
 		// 创建状态栏
 		hwndStatus = CreateWindow(STATUSCLASSNAME, NULL, WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hWnd, NULL, hInstance, NULL);
-		SendMessage(hwndStatus, SB_SIMPLE, TRUE, (LPARAM)NULL);
+		SendMessage(hwndStatus, SB_SIMPLE, TRUE, 0);
 		break;
 	case WM_DESTROY:
 		/* 当窗口已经关闭时 */
@@ -172,21 +171,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		pnmh = (LPNMHDR)lParam;
 		if (pnmh->hwndFrom == hwndTree && pnmh->code == TVN_SELCHANGED)
 		{
-			DisplayFolder((struct ruby_object *)((LPNMTREEVIEW)lParam)->itemNew.lParam); // 选中树控件项时打开文件夹
-			UpdateStatusText(-1);
+			display_folder((struct ruby_object *)((LPNMTREEVIEW)lParam)->itemNew.lParam); // 选中树控件项时打开文件夹
+			update_status_text(-1);
 		}
 		else if (pnmh->hwndFrom == hwndList)
 		{
 			if (pnmh->code == LVN_ITEMACTIVATE)
-				OpenItem(((LPNMITEMACTIVATE)lParam)->iItem); // 双击或按下回车键时打开对象 (注: 不能使用NMITEMACTIVATE结构体中的lParam成员)
+				open_item(((LPNMITEMACTIVATE)lParam)->iItem); // 双击或按下回车键时打开对象 (注: 不能使用NMITEMACTIVATE结构体中的lParam成员)
 			else if (pnmh->code == LVN_ITEMCHANGED)
 			{
 				// 选中或取消选中项目时更新状态栏文字
 				pnmlv = (LPNMLISTVIEW)lParam;
 				if (pnmlv->uNewState & LVIS_SELECTED)
-					UpdateStatusText(pnmlv->iItem);
+					update_status_text(pnmlv->iItem);
 				else
-					UpdateStatusText(-1);
+					update_status_text(-1);
 			}
 		}
 		break;
@@ -210,9 +209,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
-INT_PTR CALLBACK AboutDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+INT_PTR CALLBACK about_dlg_proc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	int wmId;
+
 	switch (uMsg)
 	{
 	case WM_COMMAND:
@@ -231,15 +231,14 @@ INT_PTR CALLBACK AboutDlgProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 	return FALSE;
 }
 
-void AddTreeChildren(HTREEITEM hParent, struct ruby_object *obj)
+void add_tree_children(HTREEITEM hParent, struct ruby_object *obj)
 {
-	HTREEITEM hNode;
 	long i, len;
+	struct ruby_object *value;
+	HTREEITEM hNode;
 	LPTSTR pMemStr = NULL;
 	TCHAR szText[20];
-	TVINSERTSTRUCT tvis;
-	struct ruby_object *value;
-	ZeroMemory(&tvis, sizeof(tvis));
+	TVINSERTSTRUCT tvis = {0};
 
 	tvis.item.mask = TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_PARAM | TVIF_TEXT;
 	tvis.item.iImage = tvis.item.iSelectedImage = 1;
@@ -259,12 +258,12 @@ void AddTreeChildren(HTREEITEM hParent, struct ruby_object *obj)
 			continue;
 		if (obj->type == RBT_IVAR || obj->type == RBT_OBJECT || obj->type == RBT_STRUCT || obj->type == RBT_UCLASS)
 		{
-			pMemStr = UTF8ToTStr(obj->members[i].name);
+			pMemStr = utf8_to_tstr(obj->members[i].name);
 			tvis.item.pszText = pMemStr;
 		}
 		else if (obj->type == RBT_HASH || obj->type == RBT_HASH_DEF)
 		{
-			GetHashMemberName(obj, i, szText, sizeof(szText));
+			get_hash_member_name(obj, i, szText, sizeof(szText));
 			tvis.item.pszText = szText;
 		}
 		else if (obj->type == RBT_USRMARSHAL)
@@ -278,19 +277,21 @@ void AddTreeChildren(HTREEITEM hParent, struct ruby_object *obj)
 		hNode = TreeView_InsertItem(hwndTree, &tvis);
 		if (pMemStr != NULL)
 			free(pMemStr);
-		AddTreeChildren(hNode, value);
+		add_tree_children(hNode, value);
 	}
 }
 
 /* 创建主窗口菜单 */
-HMENU CreateMainMenu(void)
+HMENU create_main_menu()
 {
-	HMENU hMenu = CreateMenu();
-	HMENU hmenuFile = CreatePopupMenu();
-	HMENU hmenuHelp = CreatePopupMenu();
+	HMENU hMenu, hmenuFile, hmenuHelp;
+
+	hMenu = CreateMenu();
+	hmenuFile = CreatePopupMenu();
+	hmenuHelp = CreatePopupMenu();
 	AppendMenu(hMenu, MF_POPUP | MF_STRING, (UINT_PTR)hmenuFile, TEXT("文件(&F)"));
 	AppendMenu(hmenuFile, MF_STRING, IDM_OPEN, TEXT("打开(&O)..."));
-	AppendMenu(hmenuFile, MF_SEPARATOR, (UINT_PTR)NULL, NULL);
+	AppendMenu(hmenuFile, MF_SEPARATOR, 0, NULL);
 	AppendMenu(hmenuFile, MF_STRING, IDM_EXIT, TEXT("退出(&E)"));
 
 	AppendMenu(hMenu, MF_POPUP | MF_STRING, (UINT_PTR)hmenuHelp, TEXT("帮助(&H)"));
@@ -299,14 +300,14 @@ HMENU CreateMainMenu(void)
 }
 
 /* 显示指定文件夹的内容 */
-void DisplayFolder(struct ruby_object *folder)
+void display_folder(struct ruby_object *folder)
 {
 	long i, j, len;
+	struct ruby_object *value;
+	unsigned char real_type;
 	LVITEM lvi;
 	TCHAR szText[20];
 	LPTSTR pMemStr = NULL;
-	struct ruby_object *value;
-	unsigned char real_type;
 
 	if (!rpgdata_isfolder(folder->type))
 		return;
@@ -378,13 +379,13 @@ void DisplayFolder(struct ruby_object *folder)
 			if (folder->type == RBT_IVAR || folder->type == RBT_OBJECT || folder->type == RBT_STRUCT || folder->type == RBT_UCLASS)
 			{
 				// 对象的属性名
-				pMemStr = UTF8ToTStr(folder->members[j].name);
+				pMemStr = utf8_to_tstr(folder->members[j].name);
 				lvi.pszText = pMemStr;
 			}
 			else if (folder->type == RBT_HASH || folder->type == RBT_HASH_DEF)
 			{
 				// 哈希表成员名
-				GetHashMemberName(folder, j, szText, sizeof(szText));
+				get_hash_member_name(folder, j, szText, sizeof(szText));
 				lvi.pszText = szText;
 			}
 			else if (folder->type == RBT_USRMARSHAL)
@@ -405,7 +406,7 @@ void DisplayFolder(struct ruby_object *folder)
 			// 类型
 			lvi.mask = LVIF_TEXT;
 			lvi.iSubItem = 1;
-			lvi.pszText = GetTypeString(value->type);
+			lvi.pszText = get_type_string(value->type);
 			ListView_SetItem(hwndList, &lvi);
 
 			// 值
@@ -426,7 +427,7 @@ void DisplayFolder(struct ruby_object *folder)
 			case RBT_UCLASS:
 			case RBT_USERDEF:
 			case RBT_USRMARSHAL:
-				pMemStr = UTF8ToTStr(value->name);
+				pMemStr = utf8_to_tstr(value->name);
 				break;
 			case RBT_FALSE:
 				lvi.pszText = TEXT("false");
@@ -447,18 +448,18 @@ void DisplayFolder(struct ruby_object *folder)
 					lvi.pszText = TEXT("NaN");
 					break;
 				default:
-					pMemStr = UTF8ToTStr(value->dbl_str); // 直接显示原始字符串
+					pMemStr = utf8_to_tstr(value->dbl_str); // 直接显示原始字符串
 				}
 				break;
 			case RBT_LINK:
-				pMemStr = GetItemPath(GetParentFolder(value->adata, NULL), value->adata, FALSE);
+				pMemStr = get_item_path(get_parent_folder(value->adata, NULL), value->adata, FALSE);
 				break;
 			case RBT_NIL:
 				lvi.pszText = TEXT("nil");
 				break;
 			case RBT_REGEXP:
 			case RBT_STRING:
-				pMemStr = UTF8ToTStr(value->sdata);
+				pMemStr = utf8_to_tstr(value->sdata);
 				break;
 			case RBT_TRUE:
 				lvi.pszText = TEXT("true");
@@ -484,16 +485,17 @@ void DisplayFolder(struct ruby_object *folder)
 }
 
 // 获取当前显示的文件夹
-struct ruby_object *GetCurrentFolder(void)
+struct ruby_object *get_current_folder()
 {
 	TVITEM tvi;
+
 	tvi.mask = TVIF_PARAM;
 	tvi.hItem = TreeView_GetSelection(hwndTree); // 树控件中的当前选中项
 	TreeView_GetItem(hwndTree, &tvi);
 	return (struct ruby_object *)tvi.lParam;
 }
 
-void GetHashMemberName(struct ruby_object *obj, long i, LPTSTR lpStr, int cbSize)
+void get_hash_member_name(struct ruby_object *obj, long i, LPTSTR lpStr, int cbSize)
 {
 	if (obj->type == RBT_HASH_DEF && i == 0)
 		StringCbCopy(lpStr, cbSize, TEXT("默认值"));
@@ -505,10 +507,10 @@ void GetHashMemberName(struct ruby_object *obj, long i, LPTSTR lpStr, int cbSize
 
 // 根据数组元素(或对象成员)的值的地址确定数组(或对象)的下标
 // 该地址是随着下标线性增长的
-long GetIndex(struct ruby_object *parent, struct ruby_object *obj)
+long get_index(struct ruby_object *parent, struct ruby_object *obj)
 {
 	if (parent == NULL)
-		parent = GetCurrentFolder();
+		parent = get_current_folder();
 	if (parent->type == RBT_ARRAY || parent->type == RBT_HASH || parent->type == RBT_HASH_DEF)
 		return obj - parent->adata;
 	else if (parent->type == RBT_IVAR || parent->type == RBT_OBJECT || parent->type == RBT_STRUCT || parent->type == RBT_UCLASS)
@@ -521,20 +523,21 @@ long GetIndex(struct ruby_object *parent, struct ruby_object *obj)
 // hFolder: 所在的文件夹
 // obj: 对象, 如果为NULL则生成hFolder的路径
 // bParentItem: 对象是否为..文件夹
-LPTSTR GetItemPath(HTREEITEM hFolder, struct ruby_object *obj, BOOL bParentItem)
+LPTSTR get_item_path(HTREEITEM hFolder, struct ruby_object *obj, BOOL bParentItem)
 {
-	BOOL bAddDot = FALSE;
 	int cchSize = 150;
 	int i, j;
 	int nLen;
 	long iIndex;
-	LPTSTR pszText = (LPTSTR)malloc(cchSize * sizeof(TCHAR));
+	struct ruby_object *folder;
+	BOOL bAddDot = FALSE;
+	LPTSTR pszText;
 	LPTSTR pszName, pTemp;
 	TCHAR szText[40];
 	TCHAR temp;
 	TVITEM tvi;
-	struct ruby_object *folder;
 
+	pszText = malloc(cchSize * sizeof(TCHAR));
 	if (pszText == NULL)
 		return NULL;
 	tvi.mask = TVIF_PARAM;
@@ -554,7 +557,7 @@ LPTSTR GetItemPath(HTREEITEM hFolder, struct ruby_object *obj, BOOL bParentItem)
 	while (TreeView_GetItem(hwndTree, &tvi))
 	{
 		folder = (struct ruby_object *)tvi.lParam;
-		iIndex = GetIndex(folder, obj); // 如果发现iIndex=-1, 则表明此函数工作不正常
+		iIndex = get_index(folder, obj); // 如果发现iIndex=-1, 则表明此函数工作不正常
 		pszName = szText;
 		if (folder->type == RBT_ARRAY)
 		{
@@ -580,7 +583,7 @@ LPTSTR GetItemPath(HTREEITEM hFolder, struct ruby_object *obj, BOOL bParentItem)
 			// 对象的成员名称
 			if (strcmp(folder->members[iIndex].name, ".") != 0)
 			{
-				pszName = UTF8ToTStr(folder->members[iIndex].name);
+				pszName = utf8_to_tstr(folder->members[iIndex].name);
 				bAddDot = TRUE;
 			}
 			else
@@ -593,7 +596,7 @@ LPTSTR GetItemPath(HTREEITEM hFolder, struct ruby_object *obj, BOOL bParentItem)
 		{
 			cchSize += nLen + 1;
 			cchSize *= 2; // 容量不够时扩容
-			pTemp = (LPTSTR)realloc(pszText, cchSize * sizeof(TCHAR));
+			pTemp = realloc(pszText, cchSize * sizeof(TCHAR));
 			if (pTemp == NULL)
 			{
 				free(pszText);
@@ -634,15 +637,16 @@ LPTSTR GetItemPath(HTREEITEM hFolder, struct ruby_object *obj, BOOL bParentItem)
 	return pszText;
 }
 
-// 获取Ruby对象所在的文件夹
+/* 获取Ruby对象所在的文件夹 */
 // hFolder: 搜索指定文件夹中的各子文件夹, 如果为NULL, 则搜索根文件夹
-HTREEITEM GetParentFolder(struct ruby_object *obj, HTREEITEM hFolder)
+HTREEITEM get_parent_folder(struct ruby_object *obj, HTREEITEM hFolder)
 {
 	TVITEM tvi;
+
 	if (hFolder == NULL)
 	{
 		hFolder = TreeView_GetRoot(hwndTree);
-		if (InFolder(obj, &filecontent))
+		if (in_folder(obj, &filecontent))
 			return hFolder; // 如果在根文件夹下则直接返回
 	}
 	
@@ -652,11 +656,11 @@ HTREEITEM GetParentFolder(struct ruby_object *obj, HTREEITEM hFolder)
 	while (tvi.hItem != NULL)
 	{
 		TreeView_GetItem(hwndTree, &tvi);
-		if (InFolder(obj, (struct ruby_object *)tvi.lParam))
+		if (in_folder(obj, (struct ruby_object *)tvi.lParam))
 			return tvi.hItem;
 		else
 		{
-			hFolder = GetParentFolder(obj, tvi.hItem); // 递归遍历子孙文件夹
+			hFolder = get_parent_folder(obj, tvi.hItem); // 递归遍历子孙文件夹
 			if (hFolder != NULL)
 				return hFolder;
 		}
@@ -665,7 +669,7 @@ HTREEITEM GetParentFolder(struct ruby_object *obj, HTREEITEM hFolder)
 	return NULL;
 }
 
-LPTSTR GetTypeString(unsigned char type)
+LPTSTR get_type_string(unsigned char type)
 {
 	switch (type)
 	{
@@ -715,11 +719,12 @@ LPTSTR GetTypeString(unsigned char type)
 	}
 }
 
-// 判断一个Ruby对象是否在一个文件夹中 (不考虑子文件夹)
+/* 判断一个Ruby对象是否在一个文件夹中 (不考虑子文件夹) */
 // 注意: 符号对象可能不位于任意一个文件夹, 而是在某个对象的symbol_ref中
-BOOL InFolder(struct ruby_object *obj, struct ruby_object *folder)
+BOOL in_folder(struct ruby_object *obj, struct ruby_object *folder)
 {
 	int size; // 数据域的大小
+
 	if (obj < folder->adata)
 		return FALSE; // 若obj的地址位于folder数据域的地址之前, 则不可能在这个文件夹中
 	size = folder->length;
@@ -741,19 +746,22 @@ BOOL InFolder(struct ruby_object *obj, struct ruby_object *folder)
 }
 
 /* 初始化图像列表 */
-void InitImageList(void)
+void init_image_list()
 {
-	HICON hIcon;
-	HMODULE hmdl[] = {LoadLibrary(TEXT("regedit.exe")), LoadLibrary(TEXT("shell32.dll"))};
-	int iIcons[] = {1, 4, 5, 16769, 205, 206, 30};
-	int iIconsSrc[] = {1, 1, 1, 1, 0, 0, 1};
+	const int iIcons[] = {1, 4, 5, 16769, 205, 206, 30};
+	const int iIconsSrc[] = {1, 1, 1, 1, 0, 0, 1};
 	int cx, cy;
 	int i;
+	HICON hIcon;
+	HMODULE hmdl[2];
+
+	hmdl[0] = LoadLibrary(TEXT("regedit.exe"));
+	hmdl[1] = LoadLibrary(TEXT("shell32.dll"));
 
 	ImageList_GetIconSize(himl, &cx, &cy);
 	for (i = 0; i < _countof(iIcons); i++)
 	{
-		hIcon = (HICON)LoadImage(hmdl[iIconsSrc[i]], MAKEINTRESOURCE(iIcons[i]), IMAGE_ICON, cx, cy, (UINT)NULL);
+		hIcon = (HICON)LoadImage(hmdl[iIconsSrc[i]], MAKEINTRESOURCE(iIcons[i]), IMAGE_ICON, cx, cy, 0);
 		if (hIcon == NULL)
 			hIcon = LoadIcon(NULL, IDI_EXCLAMATION);
 		ImageList_AddIcon(himl, hIcon);
@@ -765,12 +773,13 @@ void InitImageList(void)
 		FreeLibrary(hmdl[i]);
 }
 
-void InitListView(void)
+void init_list_view()
 {
-	LPTSTR strarr[] = {TEXT("名称"), TEXT("类型"), TEXT("值")};
-	int iWidth[] = {300, 100, 200};
+	const int iWidth[] = {300, 100, 200};
+	const LPTSTR strarr[] = {TEXT("名称"), TEXT("类型"), TEXT("值")};
 	int i;
 	LVCOLUMN lvc;
+
 	lvc.mask = LVCF_TEXT | LVCF_WIDTH;
 	for (i = 0; i < _countof(strarr); i++)
 	{
@@ -781,13 +790,12 @@ void InitListView(void)
 }
 
 /* 显示打开文件的对话框 */
-void OpenFileDlg(void)
+void open_file_dlg()
 {
-	OPENFILENAME ofn;
+	OPENFILENAME ofn = {0};
 	UINT uRet;
 
 	szFile[0] = '\0';
-	ZeroMemory(&ofn, sizeof(ofn));
 	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = hwndMain;
 	ofn.lpstrFile = szFile;
@@ -801,8 +809,8 @@ void OpenFileDlg(void)
 		if (uRet == 0)
 		{
 			// 成功打开文件
-			UpdateTitle();
-			UpdateTree();
+			update_title();
+			update_tree();
 		}
 		else
 		{
@@ -845,13 +853,15 @@ void OpenFileDlg(void)
 }
 
 /* 打开列表框中的项目 */
-void OpenItem(int iItem)
+void open_item(int iItem)
 {
-	int nCount = ListView_GetSelectedCount(hwndList); // 列表框选中项的个数
+	int nCount;
+	struct ruby_object *obj;
 	LVFINDINFO lvfi;
 	LVITEM lvi;
 	TVITEM tvi;
-	struct ruby_object *obj;
+
+	nCount = ListView_GetSelectedCount(hwndList); // 列表框选中项的个数
 	if (nCount != 1)
 		return; // 只能打开一个项目
 
@@ -896,12 +906,12 @@ void OpenItem(int iItem)
 		else
 		{
 			/* 打开链接对象(obj->adata)所在的文件夹 */
-			tvi.hItem = GetParentFolder(obj->adata, NULL);
+			tvi.hItem = get_parent_folder(obj->adata, NULL);
 			if (rpgdata_isfolder(obj->adata->type))
 			{
 				// 如果链接对象是一个文件夹, 则直接进入这个文件夹
 				// 并且自动选中..文件夹
-				lvfi.lParam = (LPARAM)NULL;
+				lvfi.lParam = 0;
 				tvi.hItem = TreeView_GetChild(hwndTree, tvi.hItem);
 				while (tvi.hItem != NULL)
 				{
@@ -933,7 +943,7 @@ void OpenItem(int iItem)
 			{
 				// 如果相同, 则需要取消选中列表框中的当前项
 				if (iItem != -1)
-					ListView_SetItemState(hwndList, iItem, (UINT)NULL, LVIS_SELECTED);
+					ListView_SetItemState(hwndList, iItem, 0, LVIS_SELECTED);
 			}
 
 			if (obj == NULL || obj->type == RBT_LINK)
@@ -949,19 +959,21 @@ void OpenItem(int iItem)
 }
 
 /* 更新状态栏文字 */
-void UpdateStatusText(int iItem)
+void update_status_text(int iItem)
 {
+	int cchText, cchTitle;
+	int nCount;
 	BOOL bParentItem = FALSE;
 	HTREEITEM hFolder;
 	LPTSTR pszText, pTemp;
 	LPCTSTR pszTitle = TEXT("路径: ");
 	LVITEM lvi;
 	TCHAR szText[20];
-	int cchText, cchTitle;
-	int nCount = ListView_GetSelectedCount(hwndList);
+	
+	nCount = ListView_GetSelectedCount(hwndList);
 	if (nCount <= 1)
 	{
-		lvi.lParam = (LPARAM)NULL;
+		lvi.lParam = 0;
 		if (iItem >= 0)
 		{
 			// 获取列表框当前选中项
@@ -969,16 +981,16 @@ void UpdateStatusText(int iItem)
 			lvi.iSubItem = 0;
 			lvi.mask = LVIF_PARAM;
 			ListView_GetItem(hwndList, &lvi);
-			if (lvi.lParam == (LPARAM)NULL)
+			if (lvi.lParam == 0)
 				bParentItem = TRUE; // 选择的是..文件夹
 		}
 		hFolder = TreeView_GetSelection(hwndTree);
-		pszText = GetItemPath(hFolder, (struct ruby_object *)lvi.lParam, bParentItem);
+		pszText = get_item_path(hFolder, (struct ruby_object *)lvi.lParam, bParentItem);
 		if (pszText != NULL && pszText[0] != '\0')
 		{
 			cchTitle = lstrlen(pszTitle);
 			cchText = lstrlen(pszText);
-			pTemp = (LPTSTR)realloc(pszText, (cchTitle + cchText + 1) * sizeof(TCHAR));
+			pTemp = realloc(pszText, (cchTitle + cchText + 1) * sizeof(TCHAR));
 			if (pTemp != NULL)
 			{
 				pszText = pTemp;
@@ -997,22 +1009,22 @@ void UpdateStatusText(int iItem)
 }
 
 /* 更新主窗口标题栏文字 */
-void UpdateTitle(void)
+void update_title()
 {
-	TCHAR szTitle[MAX_PATH * 2];
+	TCHAR szTitle[2 * MAX_PATH];
+
 	if (sfi.hIcon != NULL)
 		DestroyIcon(sfi.hIcon);
-	SHGetFileInfo(szFile, (DWORD)NULL, &sfi, sizeof(SHFILEINFO), SHGFI_DISPLAYNAME | SHGFI_ICON | SHGFI_SMALLICON);
+	SHGetFileInfo(szFile, 0, &sfi, sizeof(SHFILEINFO), SHGFI_DISPLAYNAME | SHGFI_ICON | SHGFI_SMALLICON);
 	StringCbPrintf(szTitle, sizeof(szTitle), TEXT("%s - %s"), sfi.szDisplayName, APP_TITLE);
 	SetWindowText(hwndMain, szTitle);
 }
 
 /* 更新树控件中的内容 */
-void UpdateTree(void)
+void update_tree()
 {
 	HTREEITEM hRoot;
-	TVINSERTSTRUCT tvis;
-	ZeroMemory(&tvis, sizeof(tvis));
+	TVINSERTSTRUCT tvis = {0};
 	
 	/* 根节点 */
 	ImageList_ReplaceIcon(himl, 0, sfi.hIcon); // 将文件图标复制到图像列表中
@@ -1022,7 +1034,7 @@ void UpdateTree(void)
 	tvis.item.pszText = sfi.szDisplayName; // 文件名
 	tvis.item.lParam = (LPARAM)&filecontent;
 	hRoot = TreeView_InsertItem(hwndTree, &tvis);
-	AddTreeChildren(hRoot, &filecontent);
+	add_tree_children(hRoot, &filecontent);
 	
 	// 默认为展开和选中状态
 	TreeView_Expand(hwndTree, hRoot, TVE_EXPAND);
@@ -1033,15 +1045,18 @@ void UpdateTree(void)
 将UTF-8字符串转换为UTF-16或ANSI编码
 使用完必须释放内存
 */
-LPTSTR UTF8ToTStr(char *ustr)
+LPTSTR utf8_to_tstr(char *ustr)
 {
-	// 将UTF-8转换为UTF-16
-	int n = MultiByteToWideChar(CP_UTF8, (DWORD)NULL, ustr, -1, NULL, (int)NULL);
-	wchar_t *wstr = (wchar_t *)malloc(n * sizeof(wchar_t));
 #ifndef _UNICODE
 	char *str;
 #endif
-	MultiByteToWideChar(CP_UTF8, (DWORD)NULL, ustr, -1, wstr, n);
+	int n;
+	wchar_t *wstr;
+
+	// 将UTF-8转换为UTF-16
+	n = MultiByteToWideChar(CP_UTF8, 0, ustr, -1, NULL, 0);
+	wstr = malloc(n * sizeof(wchar_t));
+	MultiByteToWideChar(CP_UTF8, 0, ustr, -1, wstr, n);
 
 #ifdef _UNICODE
 	/* 当TCHAR = wchar_t时 */
@@ -1050,9 +1065,9 @@ LPTSTR UTF8ToTStr(char *ustr)
 	/* 当TCHAR = char时 */
 	// 将UTF-16转换为ANSI
 	// 在简体中文版系统下，ANSI = GB2312
-	n = WideCharToMultiByte(CP_ACP, (DWORD)NULL, wstr, -1, NULL, (int)NULL, NULL, NULL);
-	str = (char *)malloc(n * sizeof(char));
-	WideCharToMultiByte(CP_ACP, (DWORD)NULL, wstr, -1, str, n, NULL, NULL);
+	n = WideCharToMultiByte(CP_ACP, 0, wstr, -1, NULL, 0, NULL, NULL);
+	str = malloc(n * sizeof(char));
+	WideCharToMultiByte(CP_ACP, 0, wstr, -1, str, n, NULL, NULL);
 	free(wstr);
 	return str;
 #endif
