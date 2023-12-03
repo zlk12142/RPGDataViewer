@@ -25,7 +25,6 @@ TCHAR szFile[MAX_PATH]; // 打开的文件
 /* 主函数 */
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
-	HMENU hMenu;
 	HWND hWnd;
 	MSG msg;
 	WNDCLASSEX wcex = {0};
@@ -40,6 +39,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	wcex.hIconSm = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(IDI_APPICON), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), 0);
 	wcex.hInstance = hInstance;
 	wcex.lpszClassName = TEXT("MainWindow");
+	wcex.lpszMenuName = MAKEINTRESOURCE(IDR_MENU1);
 	wcex.lpfnWndProc = wnd_proc;
 	wcex.style = CS_DBLCLKS; // 启用双击消息
 	if (!RegisterClassEx(&wcex))
@@ -49,8 +49,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	}
 
 	/* 创建并显示窗口 */
-	hMenu = create_main_menu();
-	hWnd = CreateWindow(wcex.lpszClassName, APP_TITLE, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, hMenu, hInstance, NULL);
+	hWnd = CreateWindow(wcex.lpszClassName, APP_TITLE, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
 	if (!hWnd)
 	{
 		MessageBox(NULL, TEXT("创建主窗口失败！"), TEXT("错误"), MB_ICONERROR);
@@ -85,13 +84,13 @@ LRESULT CALLBACK wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		wmId = LOWORD(wParam);
 		switch (wmId)
 		{
-		case IDM_OPEN:
+		case ID_40001:
 			open_file_dlg();
 			break;
-		case IDM_EXIT:
+		case ID_40002:
 			DestroyWindow(hWnd);
 			break;
-		case IDM_ABOUT:
+		case ID_40003:
 			DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, about_dlg_proc);
 			break;
 		}
@@ -279,24 +278,6 @@ void add_tree_children(HTREEITEM hParent, struct ruby_object *obj)
 			free(pMemStr);
 		add_tree_children(hNode, value);
 	}
-}
-
-/* 创建主窗口菜单 */
-HMENU create_main_menu()
-{
-	HMENU hMenu, hmenuFile, hmenuHelp;
-
-	hMenu = CreateMenu();
-	hmenuFile = CreatePopupMenu();
-	hmenuHelp = CreatePopupMenu();
-	AppendMenu(hMenu, MF_POPUP | MF_STRING, (UINT_PTR)hmenuFile, TEXT("文件(&F)"));
-	AppendMenu(hmenuFile, MF_STRING, IDM_OPEN, TEXT("打开(&O)..."));
-	AppendMenu(hmenuFile, MF_SEPARATOR, 0, NULL);
-	AppendMenu(hmenuFile, MF_STRING, IDM_EXIT, TEXT("退出(&E)"));
-
-	AppendMenu(hMenu, MF_POPUP | MF_STRING, (UINT_PTR)hmenuHelp, TEXT("帮助(&H)"));
-	AppendMenu(hmenuHelp, MF_STRING, IDM_ABOUT, TEXT("关于(&A)..."));
-	return hMenu;
 }
 
 /* 显示指定文件夹的内容 */

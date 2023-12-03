@@ -1,16 +1,11 @@
 #define APP_TITLE TEXT("RPG Data Viewer")
 
-#define IDM_OPEN 101
-#define IDM_EXIT 102
-#define IDM_ABOUT 103
-
 #define VIEW_MARGIN 4
 #define TREEVIEW_WIDTH 200 // 树控件窗格初始宽度
 
 LRESULT CALLBACK wnd_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK about_dlg_proc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void add_tree_children(HTREEITEM hParent, struct ruby_object *obj);
-HMENU create_main_menu();
 void display_folder(struct ruby_object *folder);
 struct ruby_object *get_current_folder();
 void get_hash_member_name(struct ruby_object *obj, long i, LPTSTR lpStr, int cbSize);
