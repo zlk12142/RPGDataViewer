@@ -1,7 +1,7 @@
 #ifdef _DEBUG
 #include <time.h>
-#include <strsafe.h>
 #include <Windows.h>
+#include <strsafe.h>
 #include "debug.h"
 #include "rpgdata.h"
 
